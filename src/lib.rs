@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use pyo3::prelude::*;
+use std::os::raw::{c_double, c_int};
 
 #[pyclass]
 pub struct Discombobugraph;
@@ -103,8 +104,7 @@ impl Discombobugraph {
     // Suggests the presence of repetitive patterns or dependencies.
     // Positive Z-score: Indicates more variation than expected.
     // Suggests an overly random sequence or excessive alternation.
-    // Z-score near 0:
-    // Indicates that the distribution of n-bit sequences is close to what is expected for randomness.
+    // Z-score near 0: Indicates that the distribution of n-bit sequences is close to what is expected for randomness.
     pub fn serial_test(&self, bitstream: &[u8], n: usize) -> f64 {
         let mut counts = HashMap::new();
         for window in bitstream.windows(n) {
@@ -173,4 +173,39 @@ impl Discombobugraph {
 fn discombobugraph(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Discombobugraph>()?;
     Ok(())
+}
+
+// FFI Bindings
+#[no_mangle]
+pub extern "C" fn discombobugraph_new() -> *mut Discombobugraph {
+    Box::into_raw(Box::new(Discombobugraph::new()))
+}
+
+#[no_mangle]
+pub extern "C" fn discombobugraph_free(instance: *mut Discombobugraph) {
+    if instance.is_null() { return; }
+    unsafe { drop(Box::from_raw(instance)) };
+}
+
+#[no_mangle]
+pub extern "C" fn discombobugraph_run(instance: *mut Discombobugraph, bitstream: *const u8, length: usize, results: *mut c_double, results_len: usize) -> c_int {
+    if instance.is_null() || bitstream.is_null() || results.is_null() {
+        return -1; // Invalid input
+    }
+
+    let discombobugraph = unsafe { &*instance };
+    let bitstream = unsafe { std::slice::from_raw_parts(bitstream, length) };
+    let output = discombobugraph.run(bitstream.to_vec());
+
+    if results_len < output.len() {
+        return -2; // Output buffer too small
+    }
+
+    unsafe {
+        for (i, &value) in output.iter().enumerate() {
+            *results.add(i) = value;
+        }
+    }
+
+    output.len() as c_int
 }
