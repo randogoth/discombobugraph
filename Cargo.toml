@@ -1,0 +1,11 @@
+[package]
+name = "discombobugraph"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pyo3 = "0.23.3"
+statrs = "0.18.0"
+
+[[bin]]
+name = "discombobugraph"
